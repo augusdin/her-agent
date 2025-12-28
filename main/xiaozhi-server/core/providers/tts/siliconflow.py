@@ -25,8 +25,15 @@ class TTSProvider(TTSProviderBase):
             "model": self.model,
             "input": text,
             "voice": self.voice,
-            "response_format": self.response_format,
         }
+        if self.response_format:
+            request_json["response_format"] = self.response_format
+        if self.speed is not None:
+            request_json["speed"] = self.speed
+        if self.gain is not None:
+            request_json["gain"] = float(self.gain)
+        if self.sample_rate is not None:
+            request_json["sample_rate"] = int(self.sample_rate)
         headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
