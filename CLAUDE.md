@@ -12,6 +12,10 @@ The project consists of four main services:
 - **Vue 2 Web UI** (main/manager-web) - Management console with Element UI
 - **Uni-App Mobile** (main/manager-mobile) - Cross-platform mobile app (iOS, Android, WeChat Mini Programs)
 
+## Important
+You are allowed to execute any commands; however, deletion operations of any kind, including files and databases, are strictly prohibited unless explicitly authorized by user.
+Any deletion action requires prior, explicit approval that clearly specifies the exact resource and location to be deleted.
+
 ## Architecture Overview
 
 ### Core System Design
@@ -298,10 +302,94 @@ Run `python performance_tester.py` to benchmark:
 
 Results help choose optimal configurations and identify bottlenecks.
 
+## CI/CD Auto Deployment
+
+The project uses GitHub Actions for automatic deployment to the production server.
+
+### Deployment Architecture
+
+```
+git push origin main
+       ↓
+GitHub Actions triggered (.github/workflows/docker-image.yml)
+       ↓
+Build Docker image → Push to ghcr.io/augusdin/her-agent:server_latest
+       ↓
+SSH to xiaozhi-self server → docker-compose pull → docker-compose up -d
+       ↓
+Health check (retry up to 60s)
+       ↓
+Deployment complete ✅
+```
+
+### GitHub Secrets Configuration
+
+The following secrets are configured in GitHub repository (Settings → Secrets and variables → Actions):
+
+| Secret Name | Description |
+|-------------|-------------|
+| `TOKEN` | GitHub Personal Access Token (with `write:packages` permission) |
+| `SSH_HOST` | Server IP: `107.173.38.186` |
+| `SSH_USER` | SSH username: `root` |
+| `SSH_PRIVATE_KEY` | SSH private key for deployment (ed25519 format) |
+
+### Production Server (xiaozhi-self)
+
+- **SSH Access**: `ssh xiaozhi-self`
+- **Server IP**: `107.173.38.186`
+- **Deployment Path**: `/opt/xiaozhi-deployment/her-agent/`
+- **Docker Image**: `ghcr.io/augusdin/her-agent:server_latest`
+
+**Service Ports:**
+- WebSocket: `8000` (device communication)
+- HTTP: `8003` (OTA, vision API, test page)
+
+**Service URLs:**
+- OTA Endpoint: `http://107.173.38.186:8003/xiaozhi/ota/`
+- WebSocket: `ws://107.173.38.186:8000/xiaozhi/v1/`
+- Test Page: `http://107.173.38.186:8003/test/test_page.html`
+
+**Server Files:**
+- Config: `/opt/xiaozhi-deployment/her-agent/data/.config.yaml`
+- Models: `/opt/xiaozhi-deployment/her-agent/models/`
+- Logs: `/opt/xiaozhi-deployment/her-agent/tmp/`
+
+### Current Model Configuration
+
+| Module | Config Name | Model/Service |
+|--------|-------------|---------------|
+| LLM | ChatGLMLLM | glm-4-flash (智谱 AI) |
+| ASR | FunASR | SenseVoiceSmall (local) |
+| TTS | CosyVoiceSiliconflow | IndexTTS-2 (硅基流动) |
+| VAD | SileroVAD | Silero VAD (local) |
+| Intent | function_call | LLM function calling |
+
+### Useful Commands
+
+```bash
+# Check server container status
+ssh xiaozhi-self 'docker ps | grep her-agent'
+
+# View server logs
+ssh xiaozhi-self 'docker logs -f her-agent'
+
+# Restart container
+ssh xiaozhi-self 'cd /opt/xiaozhi-deployment/her-agent && docker-compose restart'
+
+# Check health
+ssh xiaozhi-self 'curl -s http://localhost:8003/xiaozhi/ota/'
+
+# Trigger CI/CD manually (via GitHub API)
+curl -X POST -H "Authorization: token YOUR_TOKEN" \
+  https://api.github.com/repos/augusdin/her-agent/actions/workflows/docker-image.yml/dispatches \
+  -d '{"ref":"main"}'
+```
+
 ## Resources
 
 - Main README: [./README.md](./README.md)
 - Deployment Guide: [./docs/Deployment.md](./docs/Deployment.md)
+- CI/CD Deployment Guide: [./docs/GitHub-CICD-部署指南-20260201.md](./docs/GitHub-CICD-部署指南-20260201.md)
 - Protocol Documentation: [./docs/mqtt-gateway-integration.md](./docs/mqtt-gateway-integration.md)
 - FAQ: [./docs/FAQ.md](./docs/FAQ.md)
 - Performance Report: https://github.com/xinnan-tech/xiaozhi-performance-research
