@@ -83,6 +83,17 @@ jobs:
             cd /opt/xiaozhi-deployment/her-agent
             docker-compose pull
             docker-compose up -d
-            sleep 15
+            echo "Waiting for service to start..."
+            for i in {1..12}; do
+              sleep 5
+              if curl -s -o /dev/null -w "%{http_code}" http://localhost:8003/xiaozhi/ota/ | grep -q "200"; then
+                echo "Service is ready!"
+                docker ps | grep her-agent
+                exit 0
+              fi
+              echo "Attempt $i: Service not ready yet..."
+            done
+            echo "Service health check failed after 60 seconds"
             docker ps | grep her-agent
-            curl -s -o /dev/null -w "%{http_code}" http://localhost:8003/xiaozhi/ota/
+            docker logs --tail 50 her-agent
+            exit 1
