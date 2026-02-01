@@ -71,6 +71,10 @@ class SimpleHttpServer:
                 # Add route for /demo/ to serve index.html directly
                 async def serve_demo_index(request):
                     return web.FileResponse(os.path.join(demo_dir, "index.html"))
+                # Redirect /demo to /demo/
+                async def redirect_demo(request):
+                    raise web.HTTPFound("/demo/")
+                app.router.add_get("/demo", redirect_demo)
                 app.router.add_get("/demo/", serve_demo_index)
                 app.router.add_static("/demo/", demo_dir, show_index=False)
 
