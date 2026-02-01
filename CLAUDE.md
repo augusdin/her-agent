@@ -343,11 +343,21 @@ The following secrets are configured in GitHub repository (Settings → Secrets 
 **Service Ports:**
 - WebSocket: `8000` (device communication)
 - HTTP: `8003` (OTA, vision API, test page)
+- HTTPS: `443` (via Caddy reverse proxy)
 
-**Service URLs:**
+**Service URLs (HTTPS - recommended):**
+- Domain: `hermind.top`
+- Test Page: `https://hermind.top/test/test_page.html`
+- OTA Endpoint: `https://hermind.top/xiaozhi/ota/`
+- WebSocket: `wss://hermind.top/xiaozhi/v1/`
+- Vision API: `https://hermind.top/mcp/vision/explain`
+
+**Service URLs (HTTP - direct access):**
 - OTA Endpoint: `http://107.173.38.186:8003/xiaozhi/ota/`
 - WebSocket: `ws://107.173.38.186:8000/xiaozhi/v1/`
 - Test Page: `http://107.173.38.186:8003/test/test_page.html`
+
+**Note**: Use HTTPS URLs for browser testing (microphone requires secure context).
 
 **Server Files:**
 - Config: `/opt/xiaozhi-deployment/her-agent/data/.config.yaml`

@@ -323,3 +323,154 @@ curl -s -H "Authorization: token YOUR_TOKEN" \
 2. **Token 安全**：GitHub Token 有权限推送镜像，请妥善保管
 3. **配置文件保留**：服务器上的 `data/.config.yaml` 和模型文件不会被 CI/CD 覆盖
 4. **首次部署**：配置完成后需要手动推送一次代码触发 CI/CD
+
+---
+
+## HTTPS 配置（使用 Caddy）
+
+为了让测试页面能够使用麦克风功能，需要配置 HTTPS。浏览器的安全策略要求 `getUserMedia` API 只能在安全上下文（HTTPS 或 localhost）中使用。
+
+### 前置条件
+
+1. 一个域名（如 `hermind.top`）
+2. 域名 DNS 的 A 记录指向服务器 IP
+
+### 步骤 1: 安装 Caddy
+
+Caddy 是一个自动 HTTPS 的 Web 服务器，会自动申请和续期 Let's Encrypt 证书。
+
+```bash
+ssh xiaozhi-self 'apt update && apt install -y debian-keyring debian-archive-keyring apt-transport-https curl'
+ssh xiaozhi-self 'curl -1sLf "https://dl.cloudsmith.io/public/caddy/stable/gpg.key" | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg'
+ssh xiaozhi-self 'curl -1sLf "https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt" | tee /etc/apt/sources.list.d/caddy-stable.list'
+ssh xiaozhi-self 'apt update && apt install -y caddy'
+```
+
+### 步骤 2: 配置 Caddy
+
+创建 Caddyfile 配置反向代理：
+
+```bash
+ssh xiaozhi-self 'cat > /etc/caddy/Caddyfile << '\''EOF'\''
+hermind.top {
+    # WebSocket proxy for device communication
+    @websocket {
+        path /xiaozhi/v1/*
+    }
+    handle @websocket {
+        reverse_proxy localhost:8000
+    }
+
+    # HTTP API proxy (OTA, vision, test page, etc.)
+    handle {
+        reverse_proxy localhost:8003
+    }
+}
+EOF'
+```
+
+**说明**：
+- `hermind.top` - 替换为你的域名
+- `/xiaozhi/v1/*` - WebSocket 路径，代理到端口 8000
+- 其他路径代理到端口 8003（HTTP API、测试页面等）
+
+### 步骤 3: 启动 Caddy
+
+```bash
+# 验证配置
+ssh xiaozhi-self 'caddy validate --config /etc/caddy/Caddyfile'
+
+# 重启 Caddy 服务
+ssh xiaozhi-self 'systemctl restart caddy'
+
+# 查看状态（应该能看到证书申请成功的日志）
+ssh xiaozhi-self 'systemctl status caddy'
+```
+
+Caddy 会自动：
+- 申请 Let's Encrypt 证书
+- 配置 HTTPS（端口 443）
+- HTTP 自动重定向到 HTTPS
+- 证书自动续期
+
+### 步骤 4: 更新服务配置
+
+修改服务器上的 `data/.config.yaml`，将 WebSocket 和视觉分析地址改为 HTTPS：
+
+```bash
+# 更新 websocket 地址
+ssh xiaozhi-self "sed -i 's|websocket: ws://.*|websocket: wss://hermind.top/xiaozhi/v1/|' /opt/xiaozhi-deployment/her-agent/data/.config.yaml"
+
+# 更新 vision_explain 地址
+ssh xiaozhi-self "sed -i 's|vision_explain: http://.*|vision_explain: https://hermind.top/mcp/vision/explain|' /opt/xiaozhi-deployment/her-agent/data/.config.yaml"
+
+# 重启容器使配置生效
+ssh xiaozhi-self 'cd /opt/xiaozhi-deployment/her-agent && docker-compose restart'
+```
+
+### 步骤 5: 验证 HTTPS
+
+```bash
+# 测试 HTTPS OTA 接口
+curl -s https://hermind.top/xiaozhi/ota/
+
+# 应该返回类似：
+# OTA接口运行正常，向设备发送的websocket地址是：wss://hermind.top/xiaozhi/v1/
+```
+
+### HTTPS 服务地址
+
+配置完成后，可以使用以下地址：
+
+| 服务 | 地址 |
+|------|------|
+| 测试页面 | https://hermind.top/test/test_page.html |
+| OTA 接口 | https://hermind.top/xiaozhi/ota/ |
+| WebSocket | wss://hermind.top/xiaozhi/v1/ |
+| 视觉分析 | https://hermind.top/mcp/vision/explain |
+
+### 为什么需要 HTTPS
+
+浏览器的安全策略（Secure Context）要求某些敏感 API 只能在安全上下文中使用：
+
+| 来源 | 是否安全上下文 | 麦克风可用 |
+|------|---------------|-----------|
+| `https://任何地址` | ✅ 是 | ✅ 可用 |
+| `http://localhost` | ✅ 是 | ✅ 可用 |
+| `http://其他地址` | ❌ 否 | ❌ 不可用 |
+
+所以通过 HTTP 访问远程服务器的测试页面时，会出现 "音频初始化错误: Cannot read properties of undefined (reading 'getUserMedia')" 错误。
+
+### Caddy 常用命令
+
+```bash
+# 查看 Caddy 状态
+ssh xiaozhi-self 'systemctl status caddy'
+
+# 重启 Caddy
+ssh xiaozhi-self 'systemctl restart caddy'
+
+# 查看 Caddy 日志
+ssh xiaozhi-self 'journalctl -u caddy -f'
+
+# 重新加载配置（不中断服务）
+ssh xiaozhi-self 'caddy reload --config /etc/caddy/Caddyfile'
+
+# 查看证书信息
+ssh xiaozhi-self 'caddy list-certificates'
+```
+
+### 配置文件位置
+
+| 文件 | 说明 |
+|------|------|
+| `/etc/caddy/Caddyfile` | Caddy 配置文件 |
+| `~/.local/share/caddy/` | 证书存储位置 |
+| 服务器 `data/.config.yaml` | 服务配置（websocket、vision_explain 地址） |
+
+### 注意事项
+
+1. **域名解析**：确保域名 DNS 已正确解析到服务器 IP，否则证书申请会失败
+2. **端口开放**：确保服务器防火墙开放 80 和 443 端口
+3. **配置持久化**：`data/.config.yaml` 中的 HTTPS 配置是部署环境相关的，不会被 CI/CD 覆盖
+4. **证书续期**：Caddy 会自动续期证书，无需手动操作
