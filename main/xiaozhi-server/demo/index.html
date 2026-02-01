@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HerMind AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #1a1a2e;
+            color: #ffffff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #2d2d44 0%, #1a1a2e 100%);
+            padding: 16px 20px;
+            text-align: center;
+            border-bottom: 1px solid #3d3d5c;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .header h1 .logo {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        /* Chat Container */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .chat-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background: #4a4a6a;
+            border-radius: 3px;
+        }
+
+        /* Messages */
+        .message {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            line-height: 1.5;
+            font-size: 15px;
+            animation: fadeIn 0.3s ease;
+            word-wrap: break-word;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: #ffffff;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.ai {
+            background-color: #2d2d44;
+            color: #e0e0e0;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.system {
+            background-color: transparent;
+            color: #888;
+            font-size: 13px;
+            text-align: center;
+            align-self: center;
+            padding: 8px;
+        }
+
+        /* Typing indicator */
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 12px 16px;
+            background-color: #2d2d44;
+            border-radius: 16px;
+            border-bottom-left-radius: 4px;
+            align-self: flex-start;
+            max-width: 60px;
+        }
+
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background-color: #6366f1;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-indicator span:nth-child(1) { animation-delay: 0s; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-4px); opacity: 1; }
+        }
+
+        /* Control Area */
+        .control-area {
+            background: linear-gradient(180deg, #1a1a2e 0%, #2d2d44 100%);
+            padding: 24px 20px 32px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            border-top: 1px solid #3d3d5c;
+            flex-shrink: 0;
+        }
+
+        /* Main Button */
+        .main-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #ffffff;
+            transition: all 0.3s ease;
+            position: relative;
+            outline: none;
+        }
+
+        .main-button.idle {
+            background: linear-gradient(135deg, #4a4a6a 0%, #3d3d5c 100%);
+        }
+
+        .main-button.connecting {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .main-button.active {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .main-button.active::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: inherit;
+            animation: pulse 2s infinite;
+            z-index: -1;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 0.7;
+            }
+            50% {
+                transform: scale(1.15);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 0;
+            }
+        }
+
+        .main-button:hover {
+            transform: scale(1.05);
+        }
+
+        .main-button:active {
+            transform: scale(0.95);
+        }
+
+        .main-button .icon {
+            font-size: 32px;
+        }
+
+        .main-button .text {
+            font-size: 13px;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #888;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #ef4444;
+        }
+
+        .status-dot.connected {
+            background-color: #10b981;
+        }
+
+        .status-dot.connecting {
+            background-color: #f59e0b;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #3d3d5c;
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #888;
+            font-size: 14px;
+        }
+
+        /* Error Modal */
+        .error-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+            padding: 20px;
+        }
+
+        .error-modal.show {
+            display: flex;
+        }
+
+        .error-content {
+            background-color: #2d2d44;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .error-content h2 {
+            color: #ef4444;
+            margin-bottom: 12px;
+            font-size: 18px;
+        }
+
+        .error-content p {
+            color: #888;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .error-content button {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: #ffffff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .error-content button:hover {
+            transform: scale(1.05);
+        }
+
+        /* Welcome message */
+        .welcome-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .welcome-message h2 {
+            color: #888;
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .welcome-message p {
+            font-size: 14px;
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 480px) {
+            .header {
+                padding: 12px 16px;
+            }
+
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .chat-container {
+                padding: 16px;
+            }
+
+            .message {
+                max-width: 90%;
+                font-size: 14px;
+            }
+
+            .main-button {
+                width: 100px;
+                height: 100px;
+            }
+
+            .main-button .icon {
+                font-size: 28px;
+            }
+
+            .main-button .text {
+                font-size: 12px;
+            }
+
+            .control-area {
+                padding: 20px 16px 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loadingText">正在初始化...</div>
+    </div>
+
+    <!-- Error Modal -->
+    <div class="error-modal" id="errorModal">
+        <div class="error-content">
+            <h2 id="errorTitle">连接失败</h2>
+            <p id="errorMessage">无法连接到服务器，请检查网络连接后重试。</p>
+            <button onclick="retryConnection()">重试</button>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <h1>
+            <span class="logo">🤖</span>
+            HerMind AI
+        </h1>
+    </header>
+
+    <!-- Chat Container -->
+    <div class="chat-container" id="chatContainer">
+        <div class="welcome-message" id="welcomeMessage">
+            <h2>欢迎使用 HerMind AI</h2>
+            <p>点击下方按钮开始语音对话</p>
+        </div>
+    </div>
+
+    <!-- Control Area -->
+    <div class="control-area">
+        <button class="main-button idle" id="mainButton" onclick="toggleChat()">
+            <span class="icon">🎤</span>
+            <span class="text">开始聊天</span>
+        </button>
+        <div class="status-bar">
+            <span class="status-dot" id="statusDot"></span>
+            <span id="statusText">未连接</span>
+        </div>
+    </div>
+
+    <!-- Opus Library -->
+    <script src="libopus.js"></script>
+
+    <script>
+        // ==========================================
+        // Configuration
+        // ==========================================
+        const OTA_URL = 'https://hermind.top/xiaozhi/ota/';
+        const SAMPLE_RATE = 16000;
+        const CHANNELS = 1;
+        const FRAME_SIZE = 960;
+        const MIN_AUDIO_DURATION = 0.1;
+
+        // ==========================================
+        // Global State
+        // ==========================================
+        let websocket = null;
+        let audioContext = null;
+        let isRecording = false;
+        let isConnected = false;
+        let opusEncoder = null;
+        let opusDecoder = null;
+        let streamingContext = null;
+        let audioProcessor = null;
+        let audioSource = null;
+        let pcmDataBuffer = new Int16Array();
+        let deviceMac = null;
+
+        // ==========================================
+        // DOM Elements
+        // ==========================================
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingText = document.getElementById('loadingText');
+        const errorModal = document.getElementById('errorModal');
+        const errorTitle = document.getElementById('errorTitle');
+        const errorMessage = document.getElementById('errorMessage');
+        const chatContainer = document.getElementById('chatContainer');
+        const welcomeMessage = document.getElementById('welcomeMessage');
+        const mainButton = document.getElementById('mainButton');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+
+        // ==========================================
+        // Utility Functions
+        // ==========================================
+        function generateRandomMac() {
+            const hexDigits = '0123456789ABCDEF';
+            let mac = '';
+            for (let i = 0; i < 6; i++) {
+                if (i > 0) mac += ':';
+                for (let j = 0; j < 2; j++) {
+                    mac += hexDigits.charAt(Math.floor(Math.random() * 16));
+                }
+            }
+            return mac;
+        }
+
+        function getDeviceMac() {
+            let mac = localStorage.getItem('hermind_device_mac');
+            if (!mac) {
+                mac = generateRandomMac();
+                localStorage.setItem('hermind_device_mac', mac);
+            }
+            return mac;
+        }
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            console.log(`[${timestamp}] [${type.toUpperCase()}] ${message}`);
+        }
+
+        function updateStatus(status, text) {
+            statusDot.className = 'status-dot ' + status;
+            statusText.textContent = text;
+        }
+
+        function updateButton(state, icon, text) {
+            mainButton.className = 'main-button ' + state;
+            mainButton.querySelector('.icon').textContent = icon;
+            mainButton.querySelector('.text').textContent = text;
+        }
+
+        function showError(title, message) {
+            errorTitle.textContent = title;
+            errorMessage.textContent = message;
+            errorModal.classList.add('show');
+        }
+
+        function hideError() {
+            errorModal.classList.remove('show');
+        }
+
+        function hideLoading() {
+            loadingOverlay.classList.add('hidden');
+        }
+
+        function showLoading(text) {
+            loadingText.textContent = text;
+            loadingOverlay.classList.remove('hidden');
+        }
+
+        function addMessage(text, isUser = false, isSystem = false) {
+            // Hide welcome message
+            if (welcomeMessage) {
+                welcomeMessage.style.display = 'none';
+            }
+
+            const messageDiv = document.createElement('div');
+            if (isSystem) {
+                messageDiv.className = 'message system';
+            } else {
+                messageDiv.className = 'message ' + (isUser ? 'user' : 'ai');
+            }
+            messageDiv.textContent = text;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const existing = document.querySelector('.typing-indicator');
+            if (existing) return;
+
+            const indicator = document.createElement('div');
+            indicator.className = 'typing-indicator';
+            indicator.innerHTML = '<span></span><span></span><span></span>';
+            chatContainer.appendChild(indicator);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            const indicator = document.querySelector('.typing-indicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        // ==========================================
+        // Audio Context
+        // ==========================================
+        function getAudioContextInstance() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                    sampleRate: SAMPLE_RATE,
+                    latencyHint: 'interactive'
+                });
+                log('Audio context created, sample rate: ' + SAMPLE_RATE + 'Hz');
+            }
+            return audioContext;
+        }
+
+        // ==========================================
+        // Opus Encoder
+        // ==========================================
+        function initOpusEncoder() {
+            try {
+                if (opusEncoder) return opusEncoder;
+
+                if (!window.ModuleInstance) {
+                    log('Cannot create Opus encoder: ModuleInstance not available', 'error');
+                    return null;
+                }
+
+                const mod = window.ModuleInstance;
+                const application = 2048; // OPUS_APPLICATION_VOIP
+
+                opusEncoder = {
+                    channels: CHANNELS,
+                    sampleRate: SAMPLE_RATE,
+                    frameSize: FRAME_SIZE,
+                    maxPacketSize: 4000,
+                    module: mod,
+                    encoderPtr: null,
+
+                    init: function() {
+                        try {
+                            const encoderSize = mod._opus_encoder_get_size(this.channels);
+                            this.encoderPtr = mod._malloc(encoderSize);
+                            if (!this.encoderPtr) throw new Error("Cannot allocate encoder memory");
+
+                            const err = mod._opus_encoder_init(this.encoderPtr, this.sampleRate, this.channels, application);
+                            if (err < 0) throw new Error(`Opus encoder init failed: ${err}`);
+
+                            mod._opus_encoder_ctl(this.encoderPtr, 4002, 16000);
+                            mod._opus_encoder_ctl(this.encoderPtr, 4010, 5);
+                            mod._opus_encoder_ctl(this.encoderPtr, 4016, 1);
+
+                            log('Opus encoder initialized');
+                            return true;
+                        } catch (error) {
+                            if (this.encoderPtr) {
+                                mod._free(this.encoderPtr);
+                                this.encoderPtr = null;
+                            }
+                            log(`Opus encoder init failed: ${error.message}`, 'error');
+                            return false;
+                        }
+                    },
+
+                    encode: function(pcmData) {
+                        if (!this.encoderPtr && !this.init()) return null;
+
+                        try {
+                            const pcmPtr = mod._malloc(pcmData.length * 2);
+                            for (let i = 0; i < pcmData.length; i++) {
+                                mod.HEAP16[(pcmPtr >> 1) + i] = pcmData[i];
+                            }
+
+                            const outPtr = mod._malloc(this.maxPacketSize);
+                            const encodedLen = mod._opus_encode(this.encoderPtr, pcmPtr, this.frameSize, outPtr, this.maxPacketSize);
+
+                            if (encodedLen < 0) throw new Error(`Opus encode failed: ${encodedLen}`);
+
+                            const opusData = new Uint8Array(encodedLen);
+                            for (let i = 0; i < encodedLen; i++) {
+                                opusData[i] = mod.HEAPU8[outPtr + i];
+                            }
+
+                            mod._free(pcmPtr);
+                            mod._free(outPtr);
+                            return opusData;
+                        } catch (error) {
+                            log(`Opus encode error: ${error.message}`, 'error');
+                            return null;
+                        }
+                    },
+
+                    destroy: function() {
+                        if (this.encoderPtr) {
+                            this.module._free(this.encoderPtr);
+                            this.encoderPtr = null;
+                        }
+                    }
+                };
+
+                opusEncoder.init();
+                return opusEncoder;
+            } catch (error) {
+                log(`Create Opus encoder failed: ${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        // ==========================================
+        // Opus Decoder
+        // ==========================================
+        async function initOpusDecoder() {
+            if (opusDecoder) return opusDecoder;
+
+            try {
+                if (typeof window.ModuleInstance === 'undefined') {
+                    if (typeof Module !== 'undefined') {
+                        window.ModuleInstance = Module;
+                    } else {
+                        throw new Error('Opus library not loaded');
+                    }
+                }
+
+                const mod = window.ModuleInstance;
+
+                opusDecoder = {
+                    channels: CHANNELS,
+                    rate: SAMPLE_RATE,
+                    frameSize: FRAME_SIZE,
+                    module: mod,
+                    decoderPtr: null,
+
+                    init: function() {
+                        if (this.decoderPtr) return true;
+
+                        const decoderSize = mod._opus_decoder_get_size(this.channels);
+                        this.decoderPtr = mod._malloc(decoderSize);
+                        if (!this.decoderPtr) throw new Error("Cannot allocate decoder memory");
+
+                        const err = mod._opus_decoder_init(this.decoderPtr, this.rate, this.channels);
+                        if (err < 0) {
+                            this.destroy();
+                            throw new Error(`Opus decoder init failed: ${err}`);
+                        }
+
+                        log("Opus decoder initialized");
+                        return true;
+                    },
+
+                    decode: function(opusData) {
+                        if (!this.decoderPtr && !this.init()) {
+                            throw new Error("Decoder not initialized");
+                        }
+
+                        try {
+                            const opusPtr = mod._malloc(opusData.length);
+                            mod.HEAPU8.set(opusData, opusPtr);
+
+                            const pcmPtr = mod._malloc(this.frameSize * 2);
+                            const decodedSamples = mod._opus_decode(this.decoderPtr, opusPtr, opusData.length, pcmPtr, this.frameSize, 0);
+
+                            if (decodedSamples < 0) {
+                                mod._free(opusPtr);
+                                mod._free(pcmPtr);
+                                throw new Error(`Opus decode failed: ${decodedSamples}`);
+                            }
+
+                            const decodedData = new Int16Array(decodedSamples);
+                            for (let i = 0; i < decodedSamples; i++) {
+                                decodedData[i] = mod.HEAP16[(pcmPtr >> 1) + i];
+                            }
+
+                            mod._free(opusPtr);
+                            mod._free(pcmPtr);
+                            return decodedData;
+                        } catch (error) {
+                            log(`Opus decode error: ${error.message}`, 'error');
+                            return new Int16Array(0);
+                        }
+                    },
+
+                    destroy: function() {
+                        if (this.decoderPtr) {
+                            this.module._free(this.decoderPtr);
+                            this.decoderPtr = null;
+                        }
+                    }
+                };
+
+                opusDecoder.init();
+                return opusDecoder;
+            } catch (error) {
+                log(`Opus decoder init failed: ${error.message}`, 'error');
+                opusDecoder = null;
+                throw error;
+            }
+        }
+
+        // ==========================================
+        // Blocking Queue for Audio Buffering
+        // ==========================================
+        class BlockingQueue {
+            #items = [];
+            #waiters = [];
+            #emptyPromise = null;
+            #emptyResolve = null;
+
+            enqueue(item, ...restItems) {
+                if (restItems.length === 0) {
+                    this.#items.push(item);
+                } else {
+                    const items = [item, ...restItems].filter(i => i);
+                    if (items.length === 0) return;
+                    this.#items.push(...items);
+                }
+                if (this.#emptyResolve) {
+                    this.#emptyResolve();
+                    this.#emptyResolve = null;
+                    this.#emptyPromise = null;
+                }
+                this.#wakeWaiters();
+            }
+
+            async dequeue(min = 1, timeout = Infinity, onTimeout = null) {
+                if (this.#items.length === 0) {
+                    await this.#waitForFirstItem();
+                }
+                if (this.#items.length >= min) {
+                    return this.#flush();
+                }
+                return new Promise((resolve, reject) => {
+                    let timer = null;
+                    const waiter = { resolve, reject, min, onTimeout, timer };
+                    if (Number.isFinite(timeout)) {
+                        waiter.timer = setTimeout(() => {
+                            this.#removeWaiter(waiter);
+                            if (onTimeout) onTimeout(this.#items.length);
+                            resolve(this.#flush());
+                        }, timeout);
+                    }
+                    this.#waiters.push(waiter);
+                });
+            }
+
+            #waitForFirstItem() {
+                if (!this.#emptyPromise) {
+                    this.#emptyPromise = new Promise(r => (this.#emptyResolve = r));
+                }
+                return this.#emptyPromise;
+            }
+
+            #wakeWaiters() {
+                for (let i = this.#waiters.length - 1; i >= 0; i--) {
+                    const w = this.#waiters[i];
+                    if (this.#items.length >= w.min) {
+                        this.#removeWaiter(w);
+                        w.resolve(this.#flush());
+                    }
+                }
+            }
+
+            #removeWaiter(waiter) {
+                const idx = this.#waiters.indexOf(waiter);
+                if (idx !== -1) {
+                    this.#waiters.splice(idx, 1);
+                    if (waiter.timer) clearTimeout(waiter.timer);
+                }
+            }
+
+            #flush() {
+                const snapshot = [...this.#items];
+                this.#items.length = 0;
+                return snapshot;
+            }
+
+            get length() {
+                return this.#items.length;
+            }
+        }
+
+        // ==========================================
+        // Streaming Audio Context
+        // ==========================================
+        class StreamingContext {
+            constructor(opusDecoder, audioContext, sampleRate, channels, minAudioDuration) {
+                this.opusDecoder = opusDecoder;
+                this.audioContext = audioContext;
+                this.sampleRate = sampleRate;
+                this.channels = channels;
+                this.minAudioDuration = minAudioDuration;
+                this.queue = [];
+                this.activeQueue = new BlockingQueue();
+                this.pendingAudioBufferQueue = [];
+                this.audioBufferQueue = new BlockingQueue();
+                this.playing = false;
+                this.endOfStream = false;
+                this.source = null;
+                this.totalSamples = 0;
+                this.lastPlayTime = 0;
+            }
+
+            pushAudioBuffer(item) {
+                this.audioBufferQueue.enqueue(...item);
+            }
+
+            async getPendingAudioBufferQueue() {
+                [this.pendingAudioBufferQueue, this.audioBufferQueue] = [await this.audioBufferQueue.dequeue(), new BlockingQueue()];
+            }
+
+            async getQueue(minSamples) {
+                let TepArray = [];
+                const num = minSamples - this.queue.length > 0 ? minSamples - this.queue.length : 1;
+                [TepArray, this.activeQueue] = [await this.activeQueue.dequeue(num), new BlockingQueue()];
+                this.queue.push(...TepArray);
+            }
+
+            convertInt16ToFloat32(int16Data) {
+                const float32Data = new Float32Array(int16Data.length);
+                for (let i = 0; i < int16Data.length; i++) {
+                    float32Data[i] = int16Data[i] / (int16Data[i] < 0 ? 0x8000 : 0x7FFF);
+                }
+                return float32Data;
+            }
+
+            async decodeOpusFrames() {
+                if (!this.opusDecoder) {
+                    log('Opus decoder not initialized', 'error');
+                    return;
+                }
+                log('Opus decoder started');
+
+                while (true) {
+                    let decodedSamples = [];
+                    for (const frame of this.pendingAudioBufferQueue) {
+                        try {
+                            const frameData = this.opusDecoder.decode(frame);
+                            if (frameData && frameData.length > 0) {
+                                const floatData = this.convertInt16ToFloat32(frameData);
+                                for (let i = 0; i < floatData.length; i++) {
+                                    decodedSamples.push(floatData[i]);
+                                }
+                            }
+                        } catch (error) {
+                            log("Opus decode failed: " + error.message, 'error');
+                        }
+                    }
+
+                    if (decodedSamples.length > 0) {
+                        for (let i = 0; i < decodedSamples.length; i++) {
+                            this.activeQueue.enqueue(decodedSamples[i]);
+                        }
+                        this.totalSamples += decodedSamples.length;
+                    }
+                    await this.getPendingAudioBufferQueue();
+                }
+            }
+
+            async startPlaying() {
+                while (true) {
+                    const minSamples = this.sampleRate * this.minAudioDuration * 3;
+                    if (!this.playing && this.queue.length < minSamples) {
+                        await this.getQueue(minSamples);
+                    }
+                    this.playing = true;
+                    while (this.playing && this.queue.length) {
+                        const minPlaySamples = Math.min(this.queue.length, this.sampleRate);
+                        const currentSamples = this.queue.splice(0, minPlaySamples);
+
+                        const audioBuffer = this.audioContext.createBuffer(this.channels, currentSamples.length, this.sampleRate);
+                        audioBuffer.copyToChannel(new Float32Array(currentSamples), 0);
+
+                        this.source = this.audioContext.createBufferSource();
+                        this.source.buffer = audioBuffer;
+
+                        const gainNode = this.audioContext.createGain();
+                        const fadeDuration = 0.02;
+                        gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+                        gainNode.gain.linearRampToValueAtTime(1, this.audioContext.currentTime + fadeDuration);
+
+                        const duration = audioBuffer.duration;
+                        if (duration > fadeDuration * 2) {
+                            gainNode.gain.setValueAtTime(1, this.audioContext.currentTime + duration - fadeDuration);
+                            gainNode.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + duration);
+                        }
+
+                        this.source.connect(gainNode);
+                        gainNode.connect(this.audioContext.destination);
+
+                        this.lastPlayTime = this.audioContext.currentTime;
+                        this.source.start();
+                    }
+                    await this.getQueue(minSamples);
+                }
+            }
+        }
+
+        // ==========================================
+        // Audio Buffering
+        // ==========================================
+        const audioQueue = new BlockingQueue();
+
+        async function startAudioBuffering() {
+            log("Starting audio buffering...");
+            await initOpusDecoder();
+            const timeout = 300;
+            while (true) {
+                const packets = await audioQueue.dequeue(3, timeout, (count) => {
+                    log(`Buffer timeout, current packets: ${count}`);
+                });
+                if (packets.length) {
+                    log(`Buffered ${packets.length} audio packets`);
+                    streamingContext.pushAudioBuffer(packets);
+                }
+                while (true) {
+                    const data = await audioQueue.dequeue(99, 50);
+                    if (data.length) {
+                        streamingContext.pushAudioBuffer(data);
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+
+        async function playBufferedAudio() {
+            try {
+                audioContext = getAudioContextInstance();
+                if (!opusDecoder) {
+                    await initOpusDecoder();
+                }
+                if (!streamingContext) {
+                    streamingContext = new StreamingContext(opusDecoder, audioContext, SAMPLE_RATE, CHANNELS, MIN_AUDIO_DURATION);
+                }
+                streamingContext.decodeOpusFrames();
+                streamingContext.startPlaying();
+            } catch (error) {
+                log(`Play buffered audio error: ${error.message}`, 'error');
+                streamingContext = null;
+            }
+        }
+
+        // ==========================================
+        // OTA Connection
+        // ==========================================
+        async function sendOTA() {
+            deviceMac = getDeviceMac();
+            const config = {
+                deviceId: deviceMac,
+                deviceMac: deviceMac,
+                clientId: 'hermind_demo_client'
+            };
+
+            try {
+                const res = await fetch(OTA_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Device-Id': config.deviceId,
+                        'Client-Id': config.clientId
+                    },
+                    body: JSON.stringify({
+                        version: 0,
+                        uuid: '',
+                        application: {
+                            name: 'hermind-demo',
+                            version: '1.0.0',
+                            compile_time: '2025-04-16 10:00:00',
+                            idf_version: '4.4.3',
+                            elf_sha256: '1234567890abcdef1234567890abcdef1234567890abcdef'
+                        },
+                        ota: { label: 'hermind-demo' },
+                        board: {
+                            type: 'hermind-demo',
+                            ssid: 'hermind-demo',
+                            rssi: 0,
+                            channel: 0,
+                            ip: '192.168.1.1',
+                            mac: config.deviceMac
+                        },
+                        flash_size: 0,
+                        minimum_free_heap_size: 0,
+                        mac_address: config.deviceMac,
+                        chip_model_name: '',
+                        chip_info: { model: 0, cores: 0, revision: 0, features: 0 },
+                        partition_table: [{ label: '', type: 0, subtype: 0, address: 0, size: 0 }]
+                    })
+                });
+
+                if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+                return await res.json();
+            } catch (err) {
+                log(`OTA request failed: ${err.message}`, 'error');
+                return null;
+            }
+        }
+
+        // ==========================================
+        // WebSocket Connection
+        // ==========================================
+        async function connectWebSocket() {
+            updateStatus('connecting', '正在连接...');
+            updateButton('connecting', '⏳', '连接中...');
+
+            const otaResult = await sendOTA();
+            if (!otaResult) {
+                showError('连接失败', '无法连接到 OTA 服务器，请检查网络连接后重试。');
+                updateStatus('', '连接失败');
+                updateButton('idle', '🎤', '开始聊天');
+                return false;
+            }
+
+            const { websocket: wsInfo } = otaResult;
+            if (!wsInfo || !wsInfo.url) {
+                showError('连接失败', 'OTA 响应中缺少 WebSocket 信息。');
+                updateStatus('', '连接失败');
+                updateButton('idle', '🎤', '开始聊天');
+                return false;
+            }
+
+            let connUrl = new URL(wsInfo.url);
+            if (wsInfo.token) {
+                const token = wsInfo.token.startsWith("Bearer ") ? wsInfo.token : 'Bearer ' + wsInfo.token;
+                connUrl.searchParams.append('authorization', token);
+            }
+            connUrl.searchParams.append('device-id', deviceMac);
+            connUrl.searchParams.append('client-id', 'hermind_demo_client');
+
+            log(`Connecting to: ${connUrl.toString()}`);
+
+            return new Promise((resolve) => {
+                websocket = new WebSocket(connUrl.toString());
+                websocket.binaryType = 'arraybuffer';
+
+                websocket.onopen = async () => {
+                    log('WebSocket connected');
+                    isConnected = true;
+                    updateStatus('connected', '已连接');
+
+                    // Send hello message
+                    const helloMessage = {
+                        type: 'hello',
+                        device_id: deviceMac,
+                        device_name: 'HerMind Demo',
+                        device_mac: deviceMac,
+                        token: 'demo-token',
+                        features: { mcp: false }
+                    };
+                    websocket.send(JSON.stringify(helloMessage));
+                    log('Sent hello message');
+                    resolve(true);
+                };
+
+                websocket.onclose = () => {
+                    log('WebSocket disconnected');
+                    isConnected = false;
+                    isRecording = false;
+                    updateStatus('', '已断开');
+                    updateButton('idle', '🎤', '开始聊天');
+                };
+
+                websocket.onerror = (error) => {
+                    log(`WebSocket error: ${error.message || 'Unknown error'}`, 'error');
+                    isConnected = false;
+                    updateStatus('', '连接错误');
+                    updateButton('idle', '🎤', '开始聊天');
+                    resolve(false);
+                };
+
+                websocket.onmessage = handleWebSocketMessage;
+            });
+        }
+
+        function handleWebSocketMessage(event) {
+            try {
+                if (typeof event.data === 'string') {
+                    const message = JSON.parse(event.data);
+
+                    if (message.type === 'hello') {
+                        log(`Server hello: session_id=${message.session_id}`);
+                    } else if (message.type === 'tts') {
+                        if (message.state === 'start') {
+                            log('TTS started');
+                            showTypingIndicator();
+                        } else if (message.state === 'sentence_start') {
+                            hideTypingIndicator();
+                            if (message.text) {
+                                addMessage(message.text, false);
+                            }
+                        } else if (message.state === 'stop') {
+                            log('TTS stopped');
+                            hideTypingIndicator();
+                        }
+                    } else if (message.type === 'stt') {
+                        log(`STT result: ${message.text}`);
+                        if (message.text) {
+                            addMessage(message.text, true);
+                        }
+                    } else if (message.type === 'llm') {
+                        if (message.text && message.text !== '😊') {
+                            // LLM responses are usually shown via TTS
+                        }
+                    }
+                } else {
+                    // Binary audio data
+                    handleBinaryMessage(event.data);
+                }
+            } catch (error) {
+                log(`Message handling error: ${error.message}`, 'error');
+            }
+        }
+
+        async function handleBinaryMessage(data) {
+            try {
+                let arrayBuffer;
+                if (data instanceof ArrayBuffer) {
+                    arrayBuffer = data;
+                } else if (data instanceof Blob) {
+                    arrayBuffer = await data.arrayBuffer();
+                } else {
+                    return;
+                }
+
+                const opusData = new Uint8Array(arrayBuffer);
+                if (opusData.length > 0) {
+                    audioQueue.enqueue(opusData);
+                }
+            } catch (error) {
+                log(`Binary message error: ${error.message}`, 'error');
+            }
+        }
+
+        // ==========================================
+        // Audio Recording
+        // ==========================================
+        const audioProcessorCode = `
+            class AudioRecorderProcessor extends AudioWorkletProcessor {
+                constructor() {
+                    super();
+                    this.buffers = [];
+                    this.frameSize = 960;
+                    this.buffer = new Int16Array(this.frameSize);
+                    this.bufferIndex = 0;
+                    this.isRecording = false;
+
+                    this.port.onmessage = (event) => {
+                        if (event.data.command === 'start') {
+                            this.isRecording = true;
+                            this.port.postMessage({ type: 'status', status: 'started' });
+                        } else if (event.data.command === 'stop') {
+                            this.isRecording = false;
+                            if (this.bufferIndex > 0) {
+                                const finalBuffer = this.buffer.slice(0, this.bufferIndex);
+                                this.port.postMessage({ type: 'buffer', buffer: finalBuffer });
+                                this.bufferIndex = 0;
+                            }
+                            this.port.postMessage({ type: 'status', status: 'stopped' });
+                        }
+                    };
+                }
+
+                process(inputs, outputs, parameters) {
+                    if (!this.isRecording) return true;
+                    const input = inputs[0][0];
+                    if (!input) return true;
+
+                    for (let i = 0; i < input.length; i++) {
+                        if (this.bufferIndex >= this.frameSize) {
+                            this.port.postMessage({ type: 'buffer', buffer: this.buffer.slice(0) });
+                            this.bufferIndex = 0;
+                        }
+                        this.buffer[this.bufferIndex++] = Math.max(-32768, Math.min(32767, Math.floor(input[i] * 32767)));
+                    }
+                    return true;
+                }
+            }
+            registerProcessor('audio-recorder-processor', AudioRecorderProcessor);
+        `;
+
+        async function createAudioProcessor() {
+            audioContext = getAudioContextInstance();
+
+            try {
+                if (audioContext.audioWorklet) {
+                    const blob = new Blob([audioProcessorCode], { type: 'application/javascript' });
+                    const url = URL.createObjectURL(blob);
+                    await audioContext.audioWorklet.addModule(url);
+                    URL.revokeObjectURL(url);
+
+                    const processor = new AudioWorkletNode(audioContext, 'audio-recorder-processor');
+                    processor.port.onmessage = (event) => {
+                        if (event.data.type === 'buffer') {
+                            processPCMBuffer(event.data.buffer);
+                        }
+                    };
+
+                    log('Using AudioWorklet for recording');
+                    return { node: processor, type: 'worklet' };
+                } else {
+                    // Fallback to ScriptProcessorNode
+                    const frameSize = 4096;
+                    const scriptProcessor = audioContext.createScriptProcessor(frameSize, 1, 1);
+
+                    scriptProcessor.onaudioprocess = (event) => {
+                        if (!isRecording) return;
+                        const input = event.inputBuffer.getChannelData(0);
+                        const buffer = new Int16Array(input.length);
+                        for (let i = 0; i < input.length; i++) {
+                            buffer[i] = Math.max(-32768, Math.min(32767, Math.floor(input[i] * 32767)));
+                        }
+                        processPCMBuffer(buffer);
+                    };
+
+                    const silent = audioContext.createGain();
+                    silent.gain.value = 0;
+                    scriptProcessor.connect(silent);
+                    silent.connect(audioContext.destination);
+
+                    log('Using ScriptProcessorNode for recording');
+                    return { node: scriptProcessor, type: 'processor' };
+                }
+            } catch (error) {
+                log(`Create audio processor failed: ${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        function processPCMBuffer(buffer) {
+            if (!isRecording) return;
+
+            const newBuffer = new Int16Array(pcmDataBuffer.length + buffer.length);
+            newBuffer.set(pcmDataBuffer);
+            newBuffer.set(buffer, pcmDataBuffer.length);
+            pcmDataBuffer = newBuffer;
+
+            const samplesPerFrame = 960;
+            while (pcmDataBuffer.length >= samplesPerFrame) {
+                const frameData = pcmDataBuffer.slice(0, samplesPerFrame);
+                pcmDataBuffer = pcmDataBuffer.slice(samplesPerFrame);
+                encodeAndSendOpus(frameData);
+            }
+        }
+
+        function encodeAndSendOpus(pcmData) {
+            if (!opusEncoder) {
+                log('Opus encoder not initialized', 'error');
+                return;
+            }
+
+            try {
+                const opusData = opusEncoder.encode(pcmData);
+                if (opusData && opusData.length > 0) {
+                    if (websocket && websocket.readyState === WebSocket.OPEN) {
+                        websocket.send(opusData.buffer);
+                    }
+                }
+            } catch (error) {
+                log(`Opus encode error: ${error.message}`, 'error');
+            }
+        }
+
+        async function startRecording() {
+            if (isRecording) return;
+
+            try {
+                if (!initOpusEncoder()) {
+                    showError('录音失败', '无法初始化音频编码器。');
+                    return false;
+                }
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 16000,
+                        channelCount: 1
+                    }
+                });
+
+                audioContext = getAudioContextInstance();
+                const processorResult = await createAudioProcessor();
+                if (!processorResult) {
+                    showError('录音失败', '无法创建音频处理器。');
+                    return false;
+                }
+
+                audioProcessor = processorResult.node;
+                audioSource = audioContext.createMediaStreamSource(stream);
+                audioSource.connect(audioProcessor);
+
+                pcmDataBuffer = new Int16Array();
+                isRecording = true;
+
+                if (processorResult.type === 'worklet' && audioProcessor.port) {
+                    audioProcessor.port.postMessage({ command: 'start' });
+                }
+
+                // Send listen start message
+                if (websocket && websocket.readyState === WebSocket.OPEN) {
+                    const listenMessage = {
+                        type: 'listen',
+                        mode: 'manual',
+                        state: 'start'
+                    };
+                    websocket.send(JSON.stringify(listenMessage));
+                    log('Sent listen start message');
+                }
+
+                updateButton('active', '🎤', '聊天中');
+                log('Recording started');
+                return true;
+            } catch (error) {
+                log(`Start recording error: ${error.message}`, 'error');
+                if (error.name === 'NotAllowedError') {
+                    showError('麦克风权限', '请允许访问麦克风以使用语音功能。');
+                } else {
+                    showError('录音失败', `无法启动录音: ${error.message}`);
+                }
+                return false;
+            }
+        }
+
+        function stopRecording() {
+            if (!isRecording) return;
+
+            try {
+                isRecording = false;
+
+                if (audioProcessor) {
+                    if (audioProcessor.port) {
+                        audioProcessor.port.postMessage({ command: 'stop' });
+                    }
+                    audioProcessor.disconnect();
+                    audioProcessor = null;
+                }
+
+                if (audioSource) {
+                    audioSource.disconnect();
+                    audioSource = null;
+                }
+
+                // Send remaining data
+                if (pcmDataBuffer.length > 0) {
+                    const samplesPerFrame = 960;
+                    if (pcmDataBuffer.length < samplesPerFrame) {
+                        const paddedBuffer = new Int16Array(samplesPerFrame);
+                        paddedBuffer.set(pcmDataBuffer);
+                        encodeAndSendOpus(paddedBuffer);
+                    }
+                    pcmDataBuffer = new Int16Array(0);
+                }
+
+                // Send listen stop message
+                if (websocket && websocket.readyState === WebSocket.OPEN) {
+                    const emptyFrame = new Uint8Array(0);
+                    websocket.send(emptyFrame);
+
+                    const stopMessage = {
+                        type: 'listen',
+                        mode: 'manual',
+                        state: 'stop'
+                    };
+                    websocket.send(JSON.stringify(stopMessage));
+                    log('Sent listen stop message');
+                }
+
+                updateButton('idle', '🎤', '开始聊天');
+                log('Recording stopped');
+                return true;
+            } catch (error) {
+                log(`Stop recording error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // ==========================================
+        // Main Control Functions
+        // ==========================================
+        async function toggleChat() {
+            hideError();
+
+            if (isRecording) {
+                // Stop recording
+                stopRecording();
+            } else {
+                // Start or resume chat
+                if (!isConnected) {
+                    const connected = await connectWebSocket();
+                    if (!connected) return;
+                }
+
+                // Start recording
+                await startRecording();
+            }
+        }
+
+        function retryConnection() {
+            hideError();
+            toggleChat();
+        }
+
+        function disconnectWebSocket() {
+            if (websocket) {
+                websocket.close();
+                websocket = null;
+            }
+            isConnected = false;
+            isRecording = false;
+        }
+
+        // ==========================================
+        // Initialization
+        // ==========================================
+        async function init() {
+            log('Initializing HerMind AI Demo...');
+
+            // Check Opus library
+            try {
+                if (typeof Module !== 'undefined') {
+                    if (typeof Module.instance !== 'undefined' && typeof Module.instance._opus_decoder_get_size === 'function') {
+                        window.ModuleInstance = Module.instance;
+                        log('Opus library loaded (Module.instance)');
+                    } else if (typeof Module._opus_decoder_get_size === 'function') {
+                        window.ModuleInstance = Module;
+                        log('Opus library loaded (global Module)');
+                    } else {
+                        throw new Error('Opus functions not found');
+                    }
+                } else {
+                    throw new Error('Module not defined');
+                }
+            } catch (error) {
+                log(`Opus library check failed: ${error.message}`, 'error');
+                showError('初始化失败', '音频库加载失败，请刷新页面重试。');
+                hideLoading();
+                return;
+            }
+
+            // Initialize audio playback
+            try {
+                await initOpusDecoder();
+                playBufferedAudio();
+                startAudioBuffering();
+                log('Audio system initialized');
+            } catch (error) {
+                log(`Audio init error: ${error.message}`, 'error');
+            }
+
+            hideLoading();
+            log('Initialization complete');
+        }
+
+        // Start initialization when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

@@ -65,6 +65,11 @@ class SimpleHttpServer:
             if os.path.exists(test_dir):
                 app.router.add_static("/test/", test_dir, show_index=True)
 
+            # Add static file route for demo page
+            demo_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "demo")
+            if os.path.exists(demo_dir):
+                app.router.add_static("/demo/", demo_dir, show_index=True)
+
             # 运行服务
             runner = web.AppRunner(app)
             await runner.setup()
